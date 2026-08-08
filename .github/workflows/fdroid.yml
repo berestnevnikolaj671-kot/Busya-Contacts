@@ -1,0 +1,52 @@
+name: Build Busya F-Droid Repo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.APK' # Запускать робота только если вы загрузили новый APK
+  workflow_dispatch: # Кнопка для ручного запуска
+
+jobs:
+  build-fdroid:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Чекаут репозитория
+        uses: actions/checkout@v4
+
+      - name: Установка Python и Android инструментов
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Установка F-Droid Server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aapt zipalign apksigner
+          pip install fdroidserver
+
+      - name: Настройка структуры магазина
+        run: |
+          mkdir -p fdroid/repo
+          # Копируем все ваши APK файлы в папку магазина
+          cp *.APK fdroid/repo/ || true
+          
+          # Создаем файл настроек вашего личного магазина
+          cat <<EOT > fdroid/config.yml
+          repo_url: "https://berestnevnikolaj671-kot.github.io/Busya-Contacts/fdroid/repo"
+          repo_name: "BusyaTM Apps"
+          repo_description: "Официальный репозиторий защищенных и приватных утилит BusyaTM. Никакой слежки, только локальная работа."
+          EOT
+
+      - name: Генерация индексов F-Droid
+        run: |
+          cd fdroid
+          fdroid update -c
+
+      - name: Публикация магазина в интернет (GitHub Pages)
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./fdroid/repo
+          destination_dir: fdroid/repo
