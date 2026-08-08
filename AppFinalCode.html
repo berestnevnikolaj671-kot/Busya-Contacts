@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Контакты</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        iosBlue: '#007AFF',
+                        iosBlueDark: '#0A84FF',
+                        iosBg: { light: '#F2F2F7', dark: '#000000' },
+                        iosCard: { light: '#FFFFFF', dark: '#1C1C1E' },
+                        iosText: { light: '#000000', dark: '#FFFFFF' },
+                        iosGray: { light: '#8E8E93', dark: '#3A3A3C' },
+                        iosDivider: { light: '#E5E5EA', dark: '#38383A' }
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        /* Строгая изоляция экранов (Защита от бага наложения) */
+        .screen-layer { display: none !important; }
+        .screen-active {
+            display: flex !important;
+            animation: slideIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: scale(0.98) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Разделители iOS */
+        .ios-divider:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 0;
+            height: 1px;
+            background-color: #E5E5EA;
+        }
+        .dark .ios-divider:not(:last-child)::after { background-color: #38383A; }
+        
+        .avatar-placeholder {
+            background: linear-gradient(135deg, #A2AAAD 0%, #8E8E93 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        /* RTL Поддержка для Иврита */
+        body[dir="rtl"] .ios-divider:not(:last-child)::after { left: 0; right: 1rem; }
+        body[dir="rtl"] .ml-4 { margin-left: 0; margin-right: 1rem; }
+        body[dir="rtl"] .mr-1 { margin-right: 0; margin-left: 0.25rem; }
+        body[dir="rtl"] .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+        body[dir="rtl"] .pl-9 { padding-left: 1rem; padding-right: 2.25rem; }
+        body[dir="rtl"] .left-3 { left: auto; right: 0.75rem; }
+        body[dir="rtl"] .text-left { text-align: right; }
+    </style>
+</head>
+
+<body class="bg-iosBg-light dark:bg-iosBg-dark text-iosText-light dark:text-iosText-dark font-sans h-screen w-screen overflow-hidden transition-colors duration-300" dir="ltr">
+
+    <div id="app" class="h-full w-full max-w-md mx-auto relative bg-iosBg-light dark:bg-iosBg-dark shadow-2xl flex flex-col">
+        
+        <!-- ================= ЭКРАН 1: ГЛАВНЫЙ СПИСОК ================= -->
+        <div id="main-screen" class="screen-layer flex-col h-full w-full screen-active relative z-10">
+            <div class="px-4 pt-6 pb-2 flex justify-between items-center z-20 sticky top-0 bg-iosBg-light dark:bg-iosBg-dark">
+                <button onclick="showScreen('settings-screen')" class="text-iosBlue dark:text-iosBlueDark font-medium text-lg flex items-center hover:opacity-70 transition">
+                    <i class="fas fa-cog mr-1"></i> <span data-i18n="settings_title">Настройки</span>
+                </button>
+                <button onclick="openAddModal()" class="text-iosBlue dark:text-iosBlueDark text-2xl font-light h-8 w-8 flex items-center justify-center hover:opacity-70 transition active:scale-90">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="px-4 pb-2 sticky top-12 z-20 bg-iosBg-light dark:bg-iosBg-dark">
+                <h1 class="text-3xl font-bold mb-4 mt-1" data-i18n="contacts_title">Контакты</h1>
+                <div class="relative flex items-center">
+                    <i class="fas fa-search absolute left-3 text-iosGray-light"></i>
+                    <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="Поиск контактов..." class="w-full bg-gray-200 dark:bg-gray-800 rounded-xl py-2 pl-9 pr-4 text-iosText-light dark:text-iosText-dark outline-none focus:ring-2 focus:ring-iosBlue transition-all">
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto pb-4 pt-2 flex flex-col relative z-10">
+                <div id="empty-state" class="hidden flex-col items-center justify-center pt-20 px-6 text-center">
+                    <div class="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-iosGray-light">
+                        <i class="fas fa-address-book text-4xl"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold mb-2" data-i18n="no_contacts">Вы пока не добавили контакты</h2>
+                    <button onclick="openAddModal()" class="bg-iosBlue text-white px-6 py-2 mt-4 rounded-full font-medium hover:bg-blue-600 transition shadow-sm active:scale-95" data-i18n="add_contact">
+                        Добавить контакт
+                    </button>
+                </div>
+
+                <div id="contacts-list" class="px-4"></div>
+                
+                <!-- ЮРИДИЧЕСКИЙ БЛОК (ЭКРАН 1) -->
+                <div class="px-6 py-8 mt-auto text-center text-[10px] text-iosGray-light dark:text-iosGray-dark leading-relaxed opacity-70">
+                    <span data-i18n="legal_local">Все данные хранятся исключительно локально на вашем устройстве.</span><br><br>
+                    <span data-i18n="legal_rf">Данное приложение подчиняется законам Российской Федерации.</span><br>
+                    <span data-i18n="legal_owners">Все названия сторонних сервисов принадлежат их законным владельцам.</span><br>
+                    <span data-i18n="legal_copyright">Данное приложение не охраняется авторским правом или лицензией.</span><br><br>
+                    <span class="font-medium text-iosText-light dark:text-iosText-dark" data-i18n="legal_busya">By BusyaTM - Protect your privacy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ЭКРАН 2: ПРОСМОТР КОНТАКТА ================= -->
+        <div id="view-screen" class="screen-layer flex-col h-full w-full bg-iosBg-light dark:bg-iosBg-dark relative z-10">
+            <div class="px-4 pt-6 pb-2 flex justify-between items-center sticky top-0 z-20 bg-iosBg-light dark:bg-iosBg-dark border-b border-transparent">
+                <button onclick="showScreen('main-screen')" class="text-iosBlue dark:text-iosBlueDark font-medium text-lg flex items-center hover:opacity-70 transition">
+                    <i class="fas fa-chevron-left mr-1"></i> <span data-i18n="back">Назад</span>
+                </button>
+                <button onclick="openEditModal()" class="text-iosBlue dark:text-iosBlueDark font-medium text-lg hover:opacity-70 transition" data-i18n="edit">
+                    Изменить
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto pb-4 flex flex-col relative z-10">
+                <div class="flex flex-col items-center pt-4 pb-6">
+                    <div id="view-avatar-container" class="w-24 h-24 rounded-full overflow-hidden mb-3 shadow-sm bg-white border border-gray-100 dark:border-gray-800 text-4xl"></div>
+                    <h2 id="view-name" class="text-2xl font-semibold text-center px-4"></h2>
+                    
+                    <div class="flex space-x-3 mt-5 w-full px-6 justify-center">
+                        <button id="btn-sms-action" class="flex flex-col items-center justify-center bg-iosCard-light dark:bg-iosCard-dark rounded-xl px-4 py-2 w-20 shadow-sm text-iosBlue dark:text-iosBlueDark active:opacity-70 transition">
+                            <i class="fas fa-comment text-lg mb-1"></i>
+                            <span class="text-[10px] font-medium uppercase tracking-wide" data-i18n="sms">СМС</span>
+                        </button>
+                        <button id="btn-call-action" class="flex flex-col items-center justify-center bg-iosCard-light dark:bg-iosCard-dark rounded-xl px-4 py-2 w-20 shadow-sm text-iosBlue dark:text-iosBlueDark active:opacity-70 transition">
+                            <i class="fas fa-phone text-lg mb-1"></i>
+                            <span class="text-[10px] font-medium uppercase tracking-wide" data-i18n="call">Вызов</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-4 space-y-4">
+                    <div id="view-phones" class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden hidden"></div>
+                    <div id="view-emails" class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden hidden"></div>
+                    <div id="view-socials" class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden hidden"></div>
+                    <div id="view-address" class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden hidden p-4">
+                        <p class="text-[11px] text-iosGray-light mb-1 uppercase font-semibold tracking-wider" data-i18n="address_label">АДРЕС</p>
+                        <p id="view-address-text" class="text-[17px]"></p>
+                    </div>
+                </div>
+
+                <!-- ЮРИДИЧЕСКИЙ БЛОК (ЭКРАН 2) -->
+                <div class="px-6 py-8 mt-auto text-center text-[10px] text-iosGray-light dark:text-iosGray-dark leading-relaxed opacity-70">
+                    <span data-i18n="legal_local">Все данные хранятся исключительно локально на вашем устройстве.</span><br><br>
+                    <span data-i18n="legal_rf">Данное приложение подчиняется законам Российской Федерации.</span><br>
+                    <span data-i18n="legal_owners">Все названия сторонних сервисов принадлежат их законным владельцам.</span><br>
+                    <span data-i18n="legal_copyright">Данное приложение не охраняется авторским правом или лицензией.</span><br><br>
+                    <span class="font-medium text-iosText-light dark:text-iosText-dark" data-i18n="legal_busya">By BusyaTM - Protect your privacy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ЭКРАН 3: ДОБАВЛЕНИЕ/РЕДАКТИРОВАНИЕ ================= -->
+        <div id="form-screen" class="screen-layer flex-col h-full w-full bg-iosBg-light dark:bg-iosBg-dark relative z-10">
+            <div class="px-4 pt-6 pb-2 flex justify-between items-center bg-iosBg-light dark:bg-iosBg-dark sticky top-0 z-20 border-b border-gray-200 dark:border-gray-800">
+                <button onclick="showScreen('main-screen')" class="text-iosBlue dark:text-iosBlueDark text-[17px] hover:opacity-70 transition" data-i18n="cancel">Отмена</button>
+                <h2 id="form-title" class="text-[17px] font-semibold text-center flex-1"></h2>
+                <button onclick="saveContact()" class="text-iosBlue dark:text-iosBlueDark font-semibold text-[17px] hover:opacity-70 transition" data-i18n="ready">Готово</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto flex flex-col pb-6 relative z-10">
+                <div class="flex flex-col items-center pt-6 pb-4">
+                    <div class="relative">
+                        <input type="file" id="avatar-input" accept="image/*" class="hidden" onchange="previewAvatar(this)">
+                        <div onclick="document.getElementById('avatar-input').click()" class="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center overflow-hidden cursor-pointer shadow-sm border border-gray-100 dark:border-gray-700">
+                            <i id="avatar-icon" class="fas fa-camera text-3xl text-gray-400"></i>
+                            <img id="avatar-preview" src="" class="hidden w-full h-full object-cover">
+                        </div>
+                    </div>
+                    <button id="add-avatar-btn" class="mt-2 text-[15px] text-iosBlue dark:text-iosBlueDark" onclick="document.getElementById('avatar-input').click()" data-i18n="add_photo">Добавить фото</button>
+                    <button id="remove-avatar-btn" class="mt-1 text-[15px] text-red-500 hidden" onclick="removeAvatar()" data-i18n="remove_photo">Удалить фото</button>
+                </div>
+
+                <div class="px-4">
+                    <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden">
+                        <input type="text" id="contact-name" data-i18n-placeholder="name_placeholder" placeholder="Имя и Фамилия" class="w-full py-3 px-4 bg-transparent outline-none text-[17px]">
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="px-4 text-[11px] text-iosGray-light mb-1 uppercase font-semibold tracking-wider" data-i18n="phones_label">ТЕЛЕФОНЫ</p>
+                        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden flex flex-col" id="phones-container"></div>
+                        <button onclick="addField('phones', 'Мобильный')" class="mt-2 px-4 text-[15px] text-iosBlue flex items-center hover:opacity-80 transition">
+                            <i class="fas fa-plus-circle mr-2"></i> <span data-i18n="add_phone">добавить телефон</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="px-4 text-[11px] text-iosGray-light mb-1 uppercase font-semibold tracking-wider" data-i18n="emails_label">EMAIL</p>
+                        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden flex flex-col" id="emails-container"></div>
+                        <button onclick="addField('emails', 'Gmail')" class="mt-2 px-4 text-[15px] text-iosBlue flex items-center hover:opacity-80 transition">
+                            <i class="fas fa-plus-circle mr-2"></i> <span data-i18n="add_email">добавить email</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="px-4 text-[11px] text-iosGray-light mb-1 uppercase font-semibold tracking-wider" data-i18n="socials_label">СОЦ. СЕТИ И ПРОФИЛИ</p>
+                        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden flex flex-col" id="socials-container"></div>
+                        <button onclick="addField('socials', 'VK')" class="mt-2 px-4 text-[15px] text-iosBlue flex items-center hover:opacity-80 transition">
+                            <i class="fas fa-plus-circle mr-2"></i> <span data-i18n="add_social">добавить профиль</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6">
+                        <p class="px-4 text-[11px] text-iosGray-light mb-1 uppercase font-semibold tracking-wider" data-i18n="address_label">АДРЕС</p>
+                        <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm overflow-hidden">
+                            <textarea id="contact-address" data-i18n-placeholder="address_placeholder" placeholder="Город, улица, дом..." class="w-full py-3 px-4 bg-transparent outline-none resize-none text-[17px] h-20"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="delete-btn-container" class="mt-8 mb-4 hidden">
+                        <button onclick="deleteContact()" class="w-full bg-iosCard-light dark:bg-iosCard-dark rounded-xl py-3 text-red-500 font-semibold text-[17px] shadow-sm active:bg-red-50 dark:active:bg-red-900/20 transition" data-i18n="delete_contact">
+                            Удалить контакт
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ЮРИДИЧЕСКИЙ БЛОК (ЭКРАН 3) -->
+                <div class="px-6 py-8 mt-auto text-center text-[10px] text-iosGray-light dark:text-iosGray-dark leading-relaxed opacity-70">
+                    <span data-i18n="legal_local">Все данные хранятся исключительно локально на вашем устройстве.</span><br><br>
+                    <span data-i18n="legal_rf">Данное приложение подчиняется законам Российской Федерации.</span><br>
+                    <span data-i18n="legal_owners">Все названия сторонних сервисов принадлежат их законным владельцам.</span><br>
+                    <span data-i18n="legal_copyright">Данное приложение не охраняется авторским правом или лицензией.</span><br><br>
+                    <span class="font-medium text-iosText-light dark:text-iosText-dark" data-i18n="legal_busya">By BusyaTM - Protect your privacy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ЭКРАН 4: НАСТРОЙКИ ================= -->
+        <div id="settings-screen" class="screen-layer flex-col h-full w-full bg-iosBg-light dark:bg-iosBg-dark relative z-10">
+            <div class="px-4 pt-6 pb-2 flex justify-between items-center bg-iosBg-light dark:bg-iosBg-dark sticky top-0 z-20 border-b border-gray-200 dark:border-gray-800">
+                <button onclick="showScreen('main-screen')" class="text-iosBlue dark:text-iosBlueDark text-[17px] flex items-center hover:opacity-70 transition">
+                    <i class="fas fa-chevron-left mr-1"></i> <span data-i18n="back">Назад</span>
+                </button>
+                <h2 class="text-[17px] font-semibold" data-i18n="settings_title">Настройки</h2>
+                <div class="w-16"></div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto pb-6 relative z-10">
+                <p class="px-6 mt-6 mb-2 text-[11px] text-iosGray-light uppercase font-semibold tracking-wider" data-i18n="appearance">ОФОРМЛЕНИЕ</p>
+                <div class="bg-iosCard-light dark:bg-iosCard-dark mx-4 rounded-xl shadow-sm flex flex-col overflow-hidden">
+                    <div class="ios-divider px-4 py-3 flex justify-between items-center">
+                        <span class="text-[17px]" data-i18n="dark_theme">Тёмная тема</span>
+                        <button onclick="toggleTheme()" class="text-iosBlue font-medium px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-lg active:scale-95 transition" id="theme-status"></button>
+                    </div>
+                    <div class="px-4 py-3 flex justify-between items-center relative">
+                        <span class="text-[17px]" data-i18n="language">Язык</span>
+                        <select id="lang-select" onchange="changeLanguage(this.value)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"></select>
+                        <div class="flex items-center text-iosGray-light z-0 pointer-events-none">
+                            <span id="current-lang-display" class="mr-2"></span> <!-- JavaScript сам соберет название отсюда без кэша -->
+                            <i class="fas fa-chevron-right text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="px-6 mt-8 mb-2 text-[11px] text-iosGray-light uppercase font-semibold tracking-wider" data-i18n="data_management">УПРАВЛЕНИЕ ДАННЫМИ</p>
+                <div class="bg-iosCard-light dark:bg-iosCard-dark mx-4 rounded-xl shadow-sm flex flex-col overflow-hidden">
+                    
+                    <button id="btn-device-import" onclick="importFromDevice()" class="ios-divider px-4 py-3 flex items-center text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <i class="fas fa-address-book w-8 text-lg text-iosBlue text-center"></i>
+                        <span class="font-medium text-[17px] flex-1 text-iosBlue" data-i18n="import_phone">Импорт из телефона</span>
+                    </button>
+
+                    <label class="ios-divider px-4 py-3 flex items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <i class="fas fa-file-import w-8 text-lg text-iosBlue text-center"></i>
+                        <span class="font-medium text-[17px] flex-1 text-iosBlue" data-i18n="import_file">Импорт из файла (.json)</span>
+                        <input type="file" class="hidden" accept=".json" onchange="importFromFile(event)">
+                    </label>
+                    
+                    <button onclick="exportToFile()" class="ios-divider px-4 py-3 flex items-center text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <i class="fas fa-file-export w-8 text-lg text-iosBlue text-center"></i>
+                        <span class="font-medium text-[17px] flex-1 text-iosBlue" data-i18n="export_file">Экспорт в файл (.json)</span>
+                    </button>
+                    
+                    <button onclick="clearAllContacts()" class="px-4 py-3 flex items-center text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition text-red-500 active:bg-red-50 dark:active:bg-red-900/20">
+                        <i class="fas fa-trash-alt w-8 text-lg text-center"></i>
+                        <span class="font-medium text-[17px] flex-1" data-i18n="delete_all">Удалить все данные</span>
+                    </button>
+                </div>
+
+                <div class="mt-8 mx-4 bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm flex flex-col overflow-hidden">
+                    <a href="https://busyacontactsofficialsite.netlify.app/" target="_blank" rel="noopener noreferrer" class="ios-divider px-4 py-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <div class="flex items-center text-iosText-light dark:text-iosText-dark">
+                            <i class="fas fa-globe w-8 text-lg text-center text-iosBlue"></i>
+                            <span class="font-medium text-[17px] ml-1" data-i18n="official_site">Официальный сайт</span>
+                        </div>
+                        <i class="fas fa-external-link-alt text-iosGray-light text-sm"></i>
+                    </a>
+                    <a href="https://github.com/berestnevnikolaj671-kot/Busya-Contacts/tree/main" target="_blank" rel="noopener noreferrer" class="px-4 py-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <div class="flex items-center text-iosText-light dark:text-iosText-dark">
+                            <i class="fas fa-code-branch w-8 text-lg text-center"></i>
+                            <span class="font-medium text-[17px] ml-1" data-i18n="my_github">Мой проект на GitHub</span>
+                        </div>
+                        <i class="fas fa-external-link-alt text-iosGray-light text-sm"></i>
+                    </a>
+                </div>
+
+                <!-- ЮРИДИЧЕСКИЙ БЛОК (ЭКРАН 4) -->
+                <div class="px-6 py-8 mt-auto text-center text-[10px] text-iosGray-light dark:text-iosGray-dark leading-relaxed opacity-70">
+                    <span data-i18n="legal_local">Все данные хранятся исключительно локально на вашем устройстве.</span><br><br>
+                    <span data-i18n="legal_rf">Данное приложение подчиняется законам Российской Федерации.</span><br>
+                    <span data-i18n="legal_owners">Все названия сторонних сервисов принадлежат их законным владельцам.</span><br>
+                    <span data-i18n="legal_copyright">Данное приложение не охраняется авторским правом или лицензией.</span><br><br>
+                    <span class="font-medium text-iosText-light dark:text-iosText-dark" data-i18n="legal_busya">By BusyaTM - Protect your privacy</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= МОДАЛЬНЫЕ ОКНА ================= -->
+        <div id="custom-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity">
+            <div class="bg-iosCard-light dark:bg-iosCard-dark rounded-2xl w-3/4 max-w-sm flex flex-col overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200" id="custom-modal-content">
+                <div class="p-6 text-center">
+                    <p id="custom-modal-msg" class="text-[17px] leading-snug font-medium text-iosText-light dark:text-iosText-dark"></p>
+                </div>
+                <div class="flex border-t border-gray-200 dark:border-gray-700 h-11" id="custom-modal-buttons"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let contacts = [];
+        let editingId = null;
+        let currentTheme = localStorage.getItem('theme') || 'light';
+        let currentLang = localStorage.getItem('contacts_lang') || 'ru';
+
+        const categoryOptions = {
+            phones: ['Мобильный', 'Домашний', 'Рабочий', 'Проводной', 'Факс'],
+            emails: ['Gmail', 'Outlook', 'Yahoo mail', 'iCloud mail', 'Yandex mail', 'Mail.ru', 'Rambler'],
+            socials: ['VK', 'Одноклассники']
+        };
+
+        // БОЛЬШОЙ И ТОЧНЫЙ СЛОВАРЬ НА 31 ЯЗЫК
+        const i18nData = {
+            "ru": { flag: "🇷🇺", name: "Русский", dict: { search_placeholder: "Поиск контактов...", no_contacts: "Вы пока не добавили контакты", add_contact: "Добавить контакт", back: "Назад", edit: "Изменить", cancel: "Отмена", new_contact: "Новый контакт", edit_contact: "Изменить контакт", ready: "Готово", name_placeholder: "Имя и Фамилия", add_photo: "Добавить фото", remove_photo: "Удалить фото", phones_label: "ТЕЛЕФОНЫ", add_phone: "добавить телефон", emails_label: "EMAIL", add_email: "добавить email", socials_label: "СОЦ. СЕТИ И ПРОФИЛИ", add_social: "добавить профиль", address_label: "АДРЕС", address_placeholder: "Город, улица, дом...", delete_contact: "Удалить контакт", appearance: "ОФОРМЛЕНИЕ", dark_theme: "Тёмная тема", language: "Язык", theme_on: "Вкл", theme_off: "Выкл", data_management: "УПРАВЛЕНИЕ ДАННЫМИ", import_phone: "Импорт из телефона", import_file: "Импорт из файла (.json)", export_file: "Экспорт в файл (.json)", delete_all: "Удалить все данные", custom_service: "Свой сервис...", name_custom: "Название", phone_placeholder: "Номер", email_placeholder: "Email адрес", social_placeholder: "ID / Ссылка", sms: "СМС", call: "Вызов", my_github: "Мой проект на GitHub", empty_search: "Ничего не найдено", contacts_title: "Контакты", settings_title: "Настройки", legal_local: "Все данные хранятся исключительно локально на вашем устройстве.", legal_rf: "Данное приложение подчиняется законам Российской Федерации.", legal_owners: "Все названия сторонних сервисов принадлежат их законным владельцам.", legal_copyright: "Данное приложение не охраняется авторским правом или лицензией.", legal_busya: "By BusyaTM - Protect your privacy" } },
+            "de": { flag: "🇩🇪", name: "Deutsch", dict: { search_placeholder: "Kontakte suchen...", no_contacts: "Noch keine Kontakte", add_contact: "Kontakt hinzufügen", back: "Zurück", edit: "Bearbeiten", cancel: "Abbrechen", new_contact: "Neuer Kontakt", edit_contact: "Kontakt bearbeiten", ready: "Fertig", name_placeholder: "Vollständiger Name", add_photo: "Foto hinzufügen", remove_photo: "Foto entfernen", phones_label: "TELEFONNUMMERN", add_phone: "Telefon hinzufügen", emails_label: "E-MAIL", add_email: "E-Mail hinzufügen", socials_label: "SOZIALE NETZWERKE", add_social: "Profil hinzufügen", address_label: "ADRESSE", address_placeholder: "Stadt, Straße...", delete_contact: "Kontakt löschen", appearance: "ERSCHEINUNGSBILD", dark_theme: "Dunkles Design", language: "Sprache", theme_on: "An", theme_off: "Aus", data_management: "DATENVERWALTUNG", import_phone: "Vom Gerät importieren", import_file: "Aus Datei importieren", export_file: "In Datei exportieren", delete_all: "Alle Daten löschen", custom_service: "Eigener Dienst...", name_custom: "Name", phone_placeholder: "Nummer", email_placeholder: "E-Mail-Adresse", social_placeholder: "ID / Link", sms: "SMS", call: "Anrufen", my_github: "Mein Projekt auf GitHub", empty_search: "Nichts gefunden", contacts_title: "Kontakte", settings_title: "Einstellungen", legal_local: "Alle Daten werden lokal gespeichert.", legal_rf: "Diese App unterliegt den Gesetzen der Russischen Föderation.", legal_owners: "Alle Marken gehören ihren rechtmäßigen Eigentümern.", legal_copyright: "Diese Anwendung ist nicht urheberrechtlich geschützt.", legal_busya: "By BusyaTM - Protect your privacy" } },
+            "at": { flag: "🇦🇹", name: "Deutsch (Österreich)", dict: { search_placeholder: "Kontakte suchen...", no_contacts: "Noch keine Kontakte", add_contact: "Kontakt hinzufügen", back: "Zurück", edit: "Bearbeiten", cancel: "Abbrechen", new_contact: "Neuer Kontakt", edit_contact: "Kontakt bearbeiten", ready: "Fertig", name_placeholder: "Vollständiger Name", add_photo: "Foto hinzufügen", remove_photo: "Foto entfernen", phones_label: "TELEFONNUMMERN", add_phone: "Telefon hinzufügen", emails_label: "E-MAIL", add_email: "E-Mail hinzufügen", socials_label: "SOZIALE NETZWERKE", add_social: "Profil hinzufügen", address_label: "ADRESSE", address_placeholder: "Stadt, Straße...", delete_contact: "Kontakt löschen", appearance: "ERSCHEINUNGSBILD", dark_theme: "Dunkles Design", language: "Sprache", theme_on: "Ein", theme_off: "Aus", data_management: "DATENVERWALTUNG", import_phone: "Vom Gerät importieren", import_file: "Aus Datei importieren", export_file: "In Datei exportieren", delete_all: "Alle Daten löschen", custom_service: "Eigener Dienst...", name_custom: "Name", phone_placeholder: "Nummer", email_placeholder: "E-Mail-Adresse", social_placeholder: "ID / Link", sms: "SMS", call: "Anrufen", my_github: "Mein Projekt auf GitHub", empty_search: "Nichts gefunden", contacts_title: "Kontakte", settings_title: "Einstellungen", legal_local: "Alle Daten werden lokal gespeichert.", legal_rf: "Diese App unterliegt den Gesetzen der Russischen Föderation.", legal_owners: "Alle Marken gehören ihren rechtmäßigen Eigentümern.", legal_copyright: "Diese Anwendung ist nicht urheberrechtlich geschützt.", legal_busya: "By BusyaTM - Protect your privacy" } },
+            "es": { flag: "🇪🇸", name: "Español", dict: { search_placeholder: "Buscar contactos...", no_contacts: "Sin contactos", add_contact: "Añadir contacto", back: "Atrás", edit: "Editar", cancel: "Cancelar", new_contact: "Nuevo contacto", edit_contact: "Editar contacto", ready: "Listo", name_placeholder: "Nombre completo", add_photo: "Añadir foto", remove_photo: "Eliminar foto", phones_label: "TELÉFONOS", add_phone: "añadir teléfono", emails_label: "EMAIL", add_email: "añadir correo", socials_label: "REDES SOCIALES", add_social: "añadir perfil", address_label: "DIRECCIÓN", address_placeholder: "Ciudad, calle...", delete_contact: "Eliminar contacto", appearance: "APARIENCIA", dark_theme: "Tema oscuro", language: "Idioma", theme_on: "Sí", theme_off: "No", data_management: "GESTIÓN DE DATOS", import_phone: "Importar del dispositivo", import_file: "Importar archivo", export_file: "Exportar archivo", delete_all: "Borrar todos", custom_service: "Servicio propio...", name_custom: "Nombre", phone_placeholder: "Número", email_placeholder: "Correo", social_placeholder: "Enlace", sms: "SMS", call: "Llamar", my_github: "Mi proyecto en GitHub", empty_search: "No encontrado", contacts_title: "Contactos", settings_title: "Ajustes", legal_local: "Todos los datos se almacenan localmente.", legal_rf: "Sujeto a las leyes de la Federación Rusa.", legal_owners: "Marcas de sus dueños.", legal_copyright: "Sin derechos de autor.", legal_busya: "By BusyaTM - Protect your privacy" } },
+            "fr": { flag: "🇫🇷", name: "Français", dict: { search_placeholder: "Rechercher...", no_contacts: "Aucun contact", add_contact: "Ajouter", back: "Retour", edit: "Modifier", cancel: "Annuler", new_contact: "Nouveau contact", edit_contact: "Modifier contact", ready: "Terminé", name_placeholder: "Nom complet", add_photo: "Ajouter photo", remove_photo: "Supprimer", phones_label: "TÉLÉPHONES", add_phone: "ajouter téléphone", emails_label: "E-MAIL", add_email: "ajouter email", socials_label: "RÉSEAUX SOCIAUX", add_social: "ajouter profil", address_label: "ADRESSE", address_placeholder: "Adresse...", delete_contact: "Supprimer contact", appearance: "APPARENCE", dark_theme: "Thème sombre", language: "Langue", theme_on: "Oui", theme_off: "Non", data_management: "GESTION", import_phone: "Importer appareil", import_file: "Importer fichier", export_file: "Exporter fichier", delete_all: "Tout supprimer", custom_service: "Service...", name_custom: "Nom", phone_placeholder: "Nummer", email_placeholder: "Email", social_placeholder: "Lien", sms: "SMS", call: "Appeler", my_github: "Mon GitHub", empty_search: "Aucun résultat", contacts_title: "Contacts", settings_title: "Paramètres", legal_local: "Données locales.", legal_rf: "Soumis aux lois de la RF.", legal_owners: "Marques aux propriétaires.", legal_copyright: "Aucun droit d'auteur.", legal_busya: "By BusyaTM" } },
+            "ci": { flag: "🇨🇮", name: "Français (Côte d'Ivoire)", dict: { search_placeholder: "Rechercher...", no_contacts: "Aucun contact", add_contact: "Ajouter", back: "Retour", edit: "Modifier", cancel: "Annuler", new_contact: "Nouveau contact", edit_contact: "Modifier contact", ready: "Terminé", name_placeholder: "Nom complet", add_photo: "Ajouter photo", remove_photo: "Supprimer", phones_label: "TÉLÉPHONES", add_phone: "ajouter téléphone", emails_label: "E-MAIL", add_email: "ajouter email", socials_label: "RÉSEAUX SOCIAUX", add_social: "ajouter profil", address_label: "ADRESSE", address_placeholder: "Adresse...", delete_contact: "Supprimer contact", appearance: "APPARENCE", dark_theme: "Thème sombre", language: "Langue", theme_on: "Oui", theme_off: "Non", data_management: "GESTION", import_phone: "Importer appareil", import_file: "Importer fichier", export_file: "Exporter fichier", delete_all: "Tout supprimer", custom_service: "Service...", name_custom: "Nom", phone_placeholder: "Nummer", email_placeholder: "Email", social_placeholder: "Lien", sms: "SMS", call: "Appeler", my_github: "Mon GitHub", empty_search: "Aucun résultat", contacts_title: "Contacts", settings_title: "Paramètres", legal_local: "Données locales.", legal_rf: "Soumis aux lois de la RF.", legal_owners: "Marques aux propriétaires.", legal_copyright: "Aucun droit d'auteur.", legal_busya: "By BusyaTM" } },
+            "be": { flag: "🇧🇾", name: "Беларуская", dict: { search_placeholder: "Пошук кантактаў...", no_contacts: "Вы пакуль не дадалі кантакты", add_contact: "Дадаць кантакт", back: "Назад", edit: "Змяніць", cancel: "Адмена", new_contact: "Новый кантакт", edit_contact: "Змяніць кантакт", ready: "Гатова", name_placeholder: "Імя і прозвішча", add_photo: "Дадаць фота", remove_photo: "Выдаліць фота", phones_label: "ТЭЛЕФОНЫ", add_phone: "дадаць тэлефон", emails_label: "EMAIL", add_email: "дадаць email", socials_label: "САЦСЕТКІ", add_social: "дадаць профіль", address_label: "АДРАС", address_placeholder: "Горад, вуліца...", delete_contact: "Выдаліць кантакт", appearance: "АФАРМЛЕННЕ", dark_theme: "Цёмная тэма", language: "Мова", theme_on: "Укл", theme_off: "Выкл", data_management: "КІРАВАННЕ ДАДЗЕНЫМІ", import_phone: "Імпарт з тэлефона", import_file: "Імпарт з файла", export_file: "Экспарт у файл", delete_all: "Выдаліць усё", custom_service: "Свой сэрвіс...", name_custom: "Назва", phone_placeholder: "Нумар", email_placeholder: "Email адрас", social_placeholder: "ID / Спасылка", sms: "СМС", call: "Выклік", my_github: "Мой праект на GitHub", empty_search: "Нічога не знойдзена", contacts_title: "Кантакты", settings_title: "Налады", legal_local: "Усе дадзеныя захоўваюцца выключна лакальна.", legal_rf: "Гэта дадатак падпарадкоўваецца законам РФ.", legal_owners: "Усе назвы належаць іх уладальнікам.", legal_copyright: "Дадатак не ахоўваецца аўтарскім правам.", legal_busya: "By BusyaTM" } },
+            "bv": { flag: "🇧🇻", name: "Norsk", dict: { search_placeholder: "Søk i kontakter...", no_contacts: "Ingen kontakter ennå", add_contact: "Legg til kontakt", back: "Tilbake", edit: "Rediger", cancel: "Avbryt", new_contact: "Ny kontakt", edit_contact: "Rediger kontakt", ready: "Ferdig", name_placeholder: "Fullt navn", add_photo: "Legg til bilde", remove_photo: "Fjern bilde", phones_label: "TELEFON", add_phone: "legg til telefon", emails_label: "E-POST", add_email: "legg til e-post", socials_label: "SOSIALE MEDIER", add_social: "legg til profil", address_label: "ADRESSE", address_placeholder: "By, gate...", delete_contact: "Slett kontakt", appearance: "UTSEENDE", dark_theme: "Mørkt tema", language: "Språk", theme_on: "På", theme_off: "Av", data_management: "DATABEHANDLING", import_phone: "Importer fra enhet", import_file: "Importer fil (.json)", export_file: "Eksporter fil (.json)", delete_all: "Slett alle data", custom_service: "Egendefinert...", name_custom: "Navn", phone_placeholder: "Nummer", email_placeholder: "E-post", social_placeholder: "ID / Lenke", sms: "SMS", call: "Ring", my_github: "Mitt GitHub-prosjekt", empty_search: "Ingen resultater", contacts_title: "Kontakter", settings_title: "Innstillinger", legal_local: "Alle data lagres lokalt.", legal_rf: "Underlagt RFs lover.", legal_owners: "Varemerker tilhører eierne.", legal_copyright: "Ingen opphavsrett.", legal_busya: "By BusyaTM" } },
+            "br": { flag: "🇧🇷", name: "Português (Brasil)", dict: { search_placeholder: "Buscar contatos...", no_contacts: "Sem contatos ainda", add_contact: "Adicionar contato", back: "Voltar", edit: "Editar", cancel: "Cancelar", new_contact: "Novo contato", edit_contact: "Editar contato", ready: "Pronto", name_placeholder: "Nome Completo", add_photo: "Adicionar foto", remove_photo: "Remover foto", phones_label: "TELEFONES", add_phone: "adicionar telefone", emails_label: "EMAIL", add_email: "adicionar email", socials_label: "REDES SOCIAIS", add_social: "adicionar perfil", address_label: "ENDEREÇO", address_placeholder: "Cidade, rua...", delete_contact: "Excluir contato", appearance: "APARÊNCIA", dark_theme: "Tema escuro", language: "Idioma", theme_on: "Lig", theme_off: "Des", data_management: "GERENCIAMENTO", import_phone: "Importar do celular", import_file: "Importar arquivo (.json)", export_file: "Exportar arquivo (.json)", delete_all: "Apagar tudo", custom_service: "Serviço próprio...", name_custom: "Nome", phone_placeholder: "Número", email_placeholder: "Email", social_placeholder: "ID / Link", sms: "SMS", call: "Ligar", my_github: "Meu GitHub", empty_search: "Nada encontrado", contacts_title: "Contatos", settings_title: "Configurações", legal_local: "Dados armazenados localmente.", legal_rf: "Sujeito às leis da RF.", legal_owners: "Marcas pertencem aos donos.", legal_copyright: "Sem direitos autorais.", legal_busya: "By BusyaTM" } },
+            "ar": { flag: "🇦🇷", name: "Español (Argentina)", dict: { search_placeholder: "Buscar contactos...", no_contacts: "Sin contactos", add_contact: "Agregar contacto", back: "Atrás", edit: "Editar", cancel: "Cancelar", new_contact: "Nuevo contacto", edit_contact: "Editar contacto", ready: "Listo", name_placeholder: "Nombre completo", add_photo: "Agregar foto", remove_photo: "Eliminar foto", phones_label: "TELÉFONOS", add_phone: "agregar teléfono", emails_label: "EMAIL", add_email: "agregar correo", socials_label: "REDES SOCIALES", add_social: "agregar perfil", address_label: "DIRECCIÓN", address_placeholder: "Ciudad, calle...", delete_contact: "Eliminar contacto", appearance: "APARIENCIA", dark_theme: "Tema oscuro", language: "Idioma", theme_on: "Sí", theme_off: "No", data_management: "GESTIÓN DE DATOS", import_phone: "Importar del dispositivo", import_file: "Importar archivo", export_file: "Exportar archivo", delete_all: "Borrar todos", custom_service: "Servicio propio...", name_custom: "Nombre", phone_placeholder: "Número", email_placeholder: "Correo", social_placeholder: "Enlace", sms: "SMS", call: "Llamar", my_github: "Mi proyecto en GitHub", empty_search: "No encontrado", contacts_title: "Contactos", settings_title: "Ajustes", legal_local: "Todos los datos se almacenan localmente.", legal_rf: "Sujeto a las leyes de la Federación Rusa.", legal_owners: "Marcas de sus dueños.", legal_copyright: "Sin derechos de autor.", legal_busya: "By BusyaTM" } },
+            "am": { flag: "🇦🇲", name: "Հայերեն", dict: { search_placeholder: "Որոնել...", no_contacts: "Դեռ կոնտակտներ չկան", add_contact: "Ավելացնել", back: "Հետ", edit: "Խմբագրել", cancel: "Չեղարկել", new_contact: "Նոր կոնտակտ", edit_contact: "Խմբագրել", ready: "Պատրաստ է", name_placeholder: "Անուն Ազգանուն", add_photo: "Ավելացնել լուսանկար", remove_photo: "Ջնջել լուսանկարը", phones_label: "ՀԵՌԱԽՈՍՆԵՐ", add_phone: "ավելացնել համար", emails_label: "ԷԼ. ՓՈՍՏ", add_email: "ավելացնել փոստ", socials_label: "ՍՈՑՑԱՆՑԵՐ", add_social: "ավելացնել պրոֆիլ", address_label: "ՀԱՍՑԵ", address_placeholder: "Քաղաք, փողոց...", delete_contact: "Ջնջել կոնտակտը", appearance: "ԱՐՏԱՔԻՆ ՏԵՍՔ", dark_theme: "Մութ թեմա", language: "Լեզու", theme_on: "Միացված է", theme_off: "Անջատված է", data_management: "ՏՎՅԱԼՆԵՐԻ ԿԱՌԱՎԱՐՈՒՄ", import_phone: "Ներմուծել հեռախոսից", import_file: "Ներմուծել ֆայլ", export_file: "Արտահանել ֆայլ", delete_all: "Ջնջել բոլոր տվյալները", custom_service: "Այլ ծառայություն...", name_custom: "Անվանում", phone_placeholder: "Համար", email_placeholder: "Էլ. փոստ", social_placeholder: "Հղում", sms: "SMS", call: "Զանգահարել", my_github: "Իմ GitHub", empty_search: "Ոչինչ չի գտնվել", contacts_title: "Կոնտակտներ", settings_title: "Կարգավորումներ", legal_local: "Բոլոր տվյալները պահվում են տեղական մակարդակում:", legal_rf: "Հավելվածը ենթարկվում է ՌԴ օրենքներին:", legal_owners: "Ապրանքանիշերը պատկանում են իրենց տերերին:", legal_copyright: "Հեղինակային իրավունքով պաշտպանված չէ:", legal_busya: "By BusyaTM" } },
+            "bg": { flag: "🇧🇬", name: "Български", dict: { search_placeholder: "Търсене на контакти...", no_contacts: "Няма контакти", add_contact: "Добави контакт", back: "Назад", edit: "Редактиране", cancel: "Отказ", new_contact: "Нов контакт", edit_contact: "Редактирай", ready: "Готово", name_placeholder: "Име и Фамилия", add_photo: "Добави снимка", remove_photo: "Премахни снимка", phones_label: "ТЕЛЕФОНИ", add_phone: "добави телефон", emails_label: "ИМЕЙЛ", add_email: "добави имейл", socials_label: "СОЦИАЛНИ МРЕЖИ", add_social: "добави профил", address_label: "АДРЕС", address_placeholder: "Град, улица...", delete_contact: "Изтрий контакт", appearance: "ИЗГЛЕД", dark_theme: "Тъмна тема", language: "Език", theme_on: "Вкл", theme_off: "Изкл", data_management: "ДАННИ", import_phone: "Внос от телефон", import_file: "Внос от файл", export_file: "Износ във файл", delete_all: "Изтрий всички", custom_service: "Собствена услуга...", name_custom: "Име", phone_placeholder: "Номер", email_placeholder: "Имейл", social_placeholder: "Линк", sms: "SMS", call: "Обаждане", my_github: "Моят GitHub", empty_search: "Няма резултати", contacts_title: "Контакти", settings_title: "Настройки", legal_local: "Данните се съхраняват локално.", legal_rf: "Подчинява се на законите на РФ.", legal_owners: "Търговските марки са на собствениците им.", legal_copyright: "Без авторски права.", legal_busya: "By BusyaTM" } },
+            "fi": { flag: "🇫🇮", name: "Suomi", dict: { search_placeholder: "Etsi yhteystietoja...", no_contacts: "Ei yhteystietoja", add_contact: "Lisää yhteystieto", back: "Takaisin", edit: "Muokkaa", cancel: "Peruuta", new_contact: "Uusi yhteystieto", edit_contact: "Muokkaa", ready: "Valmis", name_placeholder: "Koko nimi", add_photo: "Lisää kuva", remove_photo: "Poista kuva", phones_label: "PUHELIMET", add_phone: "lisää puhelin", emails_label: "SÄHKÖPOSTI", add_email: "lisää sähköposti", socials_label: "SOSIAALISET VERKOSTOT", add_social: "lisää profiili", address_label: "OSOITE", address_placeholder: "Kaupunki, katu...", delete_contact: "Poista yhteystieto", appearance: "ULKOASU", dark_theme: "Tumma teema", language: "Kieli", theme_on: "Päällä", theme_off: "Pois", data_management: "TIETOJEN HALLINTA", import_phone: "Tuo laitteesta", import_file: "Tuo tiedosto", export_file: "Vie tiedosto", delete_all: "Poista kaikki", custom_service: "Oma palvelu...", name_custom: "Nimi", phone_placeholder: "Numero", email_placeholder: "Sähköposti", social_placeholder: "Linkki", sms: "SMS", call: "Soita", my_github: "Minun GitHub", empty_search: "Ei tuloksia", contacts_title: "Yhteystiedot", settings_title: "Asetukset", legal_local: "Tiedot tallennetaan paikallisesti.", legal_rf: "Venäjän federaation lakien alainen.", legal_owners: "Tavaramerkit kuuluvat omistajilleen.", legal_copyright: "Ei tekijänoikeuksia.", legal_busya: "By BusyaTM" } },
+            "fo": { flag: "🇫🇴", name: "Føroyskt", dict: { search_placeholder: "Leita...", no_contacts: "Eingin kontakt", add_contact: "Legg afturat", back: "Aftur", edit: "Rætta", cancel: "Angra", new_contact: "Nýggj kontakt", edit_contact: "Rætta kontakt", ready: "Liðugt", name_placeholder: "Fullt navn", add_photo: "Legg mynd afturat", remove_photo: "Strika mynd", phones_label: "TELEFON", add_phone: "legg telefon afturat", emails_label: "TELDUPOSTUR", add_email: "legg teldupost afturat", socials_label: "SIVJAR", add_social: "legg vanga afturat", address_label: "BÚSTAÐUR", address_placeholder: "Býur, gøta...", delete_contact: "Strika kontakt", appearance: "ÚTSJÓND", dark_theme: "Myrkt tema", language: "Mál", theme_on: "Til", theme_off: "Frá", data_management: "DÁTAVIÐGERÐ", import_phone: "Innflyt frá eind", import_file: "Innflyt fílu", export_file: "Útflyt fílu", delete_all: "Strika alt", custom_service: "Egna tænasta...", name_custom: "Navn", phone_placeholder: "Nummar", email_placeholder: "Teldupostur", social_placeholder: "Slóð", sms: "SMS", call: "Ring", my_github: "Mítt GitHub", empty_search: "Einki funnið", contacts_title: "Sambond", settings_title: "Stillingar", legal_local: "Data er goymt lokalt.", legal_rf: "Undir RF lógum.", legal_owners: "Vørumerki hoyra til eigarar.", legal_copyright: "Eingin upphavsrættur.", legal_busya: "By BusyaTM" } },
+            "gb": { flag: "🇬🇧", name: "English (UK)", dict: { search_placeholder: "Search contacts...", no_contacts: "No contacts added yet", add_contact: "Add contact", back: "Back", edit: "Edit", cancel: "Cancel", new_contact: "New contact", edit_contact: "Edit contact", ready: "Done", name_placeholder: "Full Name", add_photo: "Add photo", remove_photo: "Remove photo", phones_label: "PHONES", add_phone: "add phone", emails_label: "EMAIL", add_email: "add email", socials_label: "SOCIALS", add_social: "add profile", address_label: "ADDRESS", address_placeholder: "City, street...", delete_contact: "Delete contact", appearance: "APPEARANCE", dark_theme: "Dark theme", language: "Language", theme_on: "On", theme_off: "Off", data_management: "DATA MANAGEMENT", import_phone: "Import from device", import_file: "Import file (.json)", export_file: "Export file (.json)", delete_all: "Delete all data", custom_service: "Custom service...", name_custom: "Name", phone_placeholder: "Number", email_placeholder: "Email address", social_placeholder: "ID / Link", sms: "SMS", call: "Call", my_github: "My GitHub project", empty_search: "No results found", contacts_title: "Contacts", settings_title: "Settings", legal_local: "All data is stored exclusively locally on your device.", legal_rf: "This application is subject to the laws of the Russian Federation.", legal_owners: "All names of third-party services belong to their legal owners.", legal_copyright: "This application is not protected by copyright or license.", legal_busya: "By BusyaTM - Protect your privacy" } },
+            "il": { flag: "🇮🇱", name: "עברית", dict: { search_placeholder: "חיפוש אנשי קשר...", no_contacts: "אין עדיין אנשי קשר", add_contact: "הוסף איש קשר", back: "חזור", edit: "ערוך", cancel: "ביטול", new_contact: "איש קשר חדש", edit_contact: "ערוך איש קשר", ready: "סיום", name_placeholder: "שם מלא", add_photo: "הוסף תמונה", remove_photo: "הסר תמונה", phones_label: "טלפונים", add_phone: "הוסף טלפון", emails_label: "דוא\"ל", add_email: "הוסף דוא\"ל", socials_label: "רשתות חברתיות", add_social: "הוסף פרופיל", address_label: "כתובת", address_placeholder: "עיר, רחוב...", delete_contact: "מחק איש קשר", appearance: "מראה", dark_theme: "ערכת נושא כהה", language: "שפה", theme_on: "מופעל", theme_off: "כבוי", data_management: "ניהול נתונים", import_phone: "ייבא ממכשיר", import_file: "ייבא קובץ", export_file: "ייצא קובץ", delete_all: "מחק הכל", custom_service: "שירות מותאם...", name_custom: "שם", phone_placeholder: "מספר", email_placeholder: "כתובת דוא\"ל", social_placeholder: "קישור", sms: "SMS", call: "התקשר", my_github: "ה-GitHub שלי", empty_search: "לא נמצאו תוצאות", contacts_title: "אנשי קשר", settings_title: "הגדרות", legal_local: "כל הנתונים נשמרים באופן מקומי בלבד.", legal_rf: "כפוף לחוקי הפדרציה הרוסית.", legal_owners: "סימני המסחר שייכים לבעליהם.", legal_copyright: "היישום אינו מוגן בזכויות יוצרים.", legal_busya: "By BusyaTM" } },
+            "hr": { flag: "🇭🇷", name: "Hrvatski", dict: { search_placeholder: "Pretraži...", no_contacts: "Nema kontakata", add_contact: "Dodaj kontakt", back: "Natrag", edit: "Uredi", cancel: "Odustani", new_contact: "Novi kontakt", edit_contact: "Uredi kontakt", ready: "Gotovo", name_placeholder: "Ime i prezime", add_photo: "Dodaj sliku", remove_photo: "Ukloni sliku", phones_label: "TELEFONI", add_phone: "dodaj telefon", emails_label: "E-MAIL", add_email: "dodaj e-mail", socials_label: "DRUŠTVENE MREŽE", add_social: "dodaj profil", address_label: "ADRESA", address_placeholder: "Grad, ulica...", delete_contact: "Izbriši kontakt", appearance: "IZGLED", dark_theme: "Tamna tema", language: "Jezik", theme_on: "Uklj", theme_off: "Isklj", data_management: "PODACI", import_phone: "Uvezi s uređaja", import_file: "Uvezi datoteku", export_file: "Izvezi datoteku", delete_all: "Izbriši sve", custom_service: "Prilagođeno...", name_custom: "Naziv", phone_placeholder: "Broj", email_placeholder: "E-mail", social_placeholder: "Poveznica", sms: "SMS", call: "Nazovi", my_github: "Moj GitHub", empty_search: "Nema rezultata", contacts_title: "Kontakti", settings_title: "Postavke", legal_local: "Podaci su pohranjeni lokalno.", legal_rf: "Podliježe zakonima Ruske Federacije.", legal_owners: "Zaštitni znakovi pripadaju vlasnicima.", legal_copyright: "Nema autorskih prava.", legal_busya: "By BusyaTM" } },
+            "is": { flag: "🇮🇸", name: "Íslenska", dict: { search_placeholder: "Leita...", no_contacts: "Engir tengiliðir", add_contact: "Bæta við", back: "Til baka", edit: "Breyta", cancel: "Hætta við", new_contact: "Nýr tengiliður", edit_contact: "Breyta", ready: "Tilbúið", name_placeholder: "Fullt nafn", add_photo: "Bæta við mynd", remove_photo: "Fjarlægja mynd", phones_label: "SÍMAR", add_phone: "bæta við síma", emails_label: "NETFANG", add_email: "bæta við netfangi", socials_label: "SAMFÉLAGSMIÐLAR", add_social: "bæta við prófíl", address_label: "HEIMILISFANG", address_placeholder: "Borg, gata...", delete_contact: "Eyða", appearance: "ÚTLIT", dark_theme: "Dökkt þema", language: "Tungumál", theme_on: "Kveikt", theme_off: "Slökkt", data_management: "GÖGN", import_phone: "Flytja inn úr tæki", import_file: "Flytja inn skrá", export_file: "Flytja út skrá", delete_all: "Eyða öllu", custom_service: "Sérsniðin...", name_custom: "Nafn", phone_placeholder: "Númer", email_placeholder: "Netfang", social_placeholder: "Tengill", sms: "SMS", call: "Hringja", my_github: "Mitt GitHub", empty_search: "Ekkert fannst", contacts_title: "Tengiliðir", settings_title: "Stillingar", legal_local: "Gögn geymd staðbundið.", legal_rf: "Háð lögum Rússlands.", legal_owners: "Vörumerki eigenda.", legal_copyright: "Enginn höfundarréttur.", legal_busya: "By BusyaTM" } },
+            "jp": { flag: "🇯🇵", name: "日本語", dict: { search_placeholder: "検索...", no_contacts: "連絡先がありません", add_contact: "連絡先を追加", back: "戻る", edit: "編集", cancel: "キャンセル", new_contact: "新しい連絡先", edit_contact: "連絡先を編集", ready: "完了", name_placeholder: "氏名", add_photo: "写真を追加", remove_photo: "写真を削除", phones_label: "電話", add_phone: "電話を追加", emails_label: "メール", add_email: "メールを追加", socials_label: "SNS", add_social: "プロファイルを追加", address_label: "住所", address_placeholder: "住所...", delete_contact: "連絡先を削除", appearance: "外観", dark_theme: "ダークテーマ", language: "言語", theme_on: "オン", theme_off: "オフ", data_management: "データ管理", import_phone: "デバイスからインポート", import_file: "ファイルからインポート", export_file: "ファイルへエクスポート", delete_all: "すべてのデータを削除", custom_service: "カスタム...", name_custom: "名前", phone_placeholder: "番号", email_placeholder: "メールアドレス", social_placeholder: "リンク", sms: "SMS", call: "発信", my_github: "私のGitHub", empty_search: "見つかりません", contacts_title: "連絡先", settings_title: "設定", legal_local: "データはローカルに保存されます。", legal_rf: "ロシア連邦の法律に準拠します。", legal_owners: "商標は所有者に帰属します。", legal_copyright: "著作権で保護されていません。", legal_busya: "By BusyaTM" } },
+            "kz": { flag: "🇰🇿", name: "Қазақша", dict: { search_placeholder: "Іздеу...", no_contacts: "Контактілер жоқ", add_contact: "Қосу", back: "Артқа", edit: "Өңдеу", cancel: "Болдырмау", new_contact: "Жаңа контакт", edit_contact: "Өңдеу", ready: "Дайын", name_placeholder: "Аты-жөні", add_photo: "Сурет қосу", remove_photo: "Суретті жою", phones_label: "ТЕЛЕФОНДАР", add_phone: "телефон қосу", emails_label: "EMAIL", add_email: "email қосу", socials_label: "ӘЛЕУМЕТТІК ЖЕЛІЛЕР", add_social: "профиль қосу", address_label: "МЕКЕНЖАЙ", address_placeholder: "Қала, көше...", delete_contact: "Жою", appearance: "БЕЗЕНДІРУ", dark_theme: "Қараңғы тема", language: "Тіл", theme_on: "Қосулы", theme_off: "Өшірулі", data_management: "ДЕРЕКТЕРДІ БАСҚАРУ", import_phone: "Телефоннан импорттау", import_file: "Файлдан импорттау", export_file: "Файлға экспорттау", delete_all: "Барлығын жою", custom_service: "Басқа...", name_custom: "Атауы", phone_placeholder: "Нөмір", email_placeholder: "Email", social_placeholder: "Сілтеме", sms: "SMS", call: "Қоңырау шалу", my_github: "Менің GitHub", empty_search: "Ештеңе табылмады", contacts_title: "Контактілер", settings_title: "Параметрлер", legal_local: "Деректер тек жергілікті сақталады.", legal_rf: "РФ заңдарына бағынады.", legal_owners: "Тауарлық белгілер иелеріне тиесілі.", legal_copyright: "Авторлық құқықпен қорғалмаған.", legal_busya: "By BusyaTM" } },
+            "mk": { flag: "🇲🇰", name: "Македонски", dict: { search_placeholder: "Пребарај...", no_contacts: "Нема контакти", add_contact: "Додај контакт", back: "Назад", edit: "Уреди", cancel: "Откажи", new_contact: "Нов контакт", edit_contact: "Уреди", ready: "Готово", name_placeholder: "Име и презиме", add_photo: "Додај слика", remove_photo: "Отстрани слика", phones_label: "ТЕЛЕФОНИ", add_phone: "додај телефон", emails_label: "Е-ПОШТА", add_email: "додај е-пошта", socials_label: "СОЦИЈАЛНИ МРЕЖИ", add_social: "додај профил", address_label: "АДРЕСА", address_placeholder: "Град, улица...", delete_contact: "Избриши", appearance: "ИЗГЛЕД", dark_theme: "Темна тема", language: "Јазик", theme_on: "Вкл", theme_off: "Искл", data_management: "ПОДАТОЦИ", import_phone: "Увези од уред", import_file: "Увези датотека", export_file: "Извези датотека", delete_all: "Избриши сè", custom_service: "Сопствен сервис...", name_custom: "Име", phone_placeholder: "Број", email_placeholder: "Е-пошта", social_placeholder: "Линк", sms: "СМС", call: "Повик", my_github: "Мојот GitHub", empty_search: "Нема резултати", contacts_title: "Контакти", settings_title: "Поставки", legal_local: "Податоците се чуваат локално.", legal_rf: "Подлежи на законите на РФ.", legal_owners: "Трговските марки припаѓаат на сопствениците.", legal_copyright: "Без авторски права.", legal_busya: "By BusyaTM" } },
+            "mt": { flag: "🇲🇹", name: "Malti", dict: { search_placeholder: "Fittex...", no_contacts: "L-ebda kuntatt", add_contact: "Żid kuntatt", back: "Lura", edit: "Editja", cancel: "Ikkanċella", new_contact: "Kuntatt ġdid", edit_contact: "Editja", ready: "Lest", name_placeholder: "Isem sħiħ", add_photo: "Żid ritratt", remove_photo: "Neħħi ritratt", phones_label: "TELEFONI", add_phone: "żid telefon", emails_label: "EMAIL", add_email: "żid email", socials_label: "NETWERKS SOĊJALI", add_social: "żid profil", address_label: "INDIRIZZ", address_placeholder: "Indirizz...", delete_contact: "Ħassar", appearance: "DEHRA", dark_theme: "Tema skura", language: "Lingwa", theme_on: "Ixgħel", theme_off: "Itfi", data_management: "DATA", import_phone: "Importa minn apparat", import_file: "Importa fajl", export_file: "Esporta fajl", delete_all: "Ħassar kollox", custom_service: "Servizz apposta...", name_custom: "Isem", phone_placeholder: "Numru", email_placeholder: "Email", social_placeholder: "Link", sms: "SMS", call: "Ċempel", my_github: "Il-GitHub tiegħi", empty_search: "Xejn ma nstab", contacts_title: "Kuntatti", settings_title: "Settings", legal_local: "Id-data tinżamm lokalment.", legal_rf: "Soġġett għal-liġijiet RF.", legal_owners: "Trademarks huma tas-sidien.", legal_copyright: "M'hemmx drittijiet tal-awtur.", legal_busya: "By BusyaTM" } },
+            "se": { flag: "🇸🇪", name: "Svenska", dict: { search_placeholder: "Sök...", no_contacts: "Inga kontakter", add_contact: "Lägg till", back: "Tillbaka", edit: "Redigera", cancel: "Avbryt", new_contact: "Ny kontakt", edit_contact: "Redigera", ready: "Klar", name_placeholder: "Fullständigt namn", add_photo: "Lägg till bild", remove_photo: "Ta bort bild", phones_label: "TELEFON", add_phone: "lägg till telefon", emails_label: "E-POST", add_email: "lägg till e-post", socials_label: "SOCIALA MEDIER", add_social: "lägg till profil", address_label: "ADRESS", address_placeholder: "Adress...", delete_contact: "Radera kontakt", appearance: "UTSEENDE", dark_theme: "Mörkt tema", language: "Språk", theme_on: "På", theme_off: "Av", data_management: "DATAHANTERING", import_phone: "Importera från enhet", import_file: "Importera fil", export_file: "Exportera fil", delete_all: "Radera all data", custom_service: "Anpassad...", name_custom: "Namn", phone_placeholder: "Nummer", email_placeholder: "E-post", social_placeholder: "Länk", sms: "SMS", call: "Ring", my_github: "Min GitHub", empty_search: "Inga resultat", contacts_title: "Kontakter", settings_title: "Inställningar", legal_local: "Data lagras lokalt.", legal_rf: "Underlagt ryska lagar.", legal_owners: "Varumärken tillhör sina ägare.", legal_copyright: "Ingen upphovsrätt.", legal_busya: "By BusyaTM" } },
+            "si": { flag: "🇸🇮", name: "Slovenščina", dict: { search_placeholder: "Išči...", no_contacts: "Ni stikov", add_contact: "Dodaj stik", back: "Nazaj", edit: "Uredi", cancel: "Prekliči", new_contact: "Nov stik", edit_contact: "Uredi", ready: "Končano", name_placeholder: "Ime in priimek", add_photo: "Dodaj sliko", remove_photo: "Odstrani sliko", phones_label: "TELEFONI", add_phone: "dodaj telefon", emails_label: "E-POŠTA", add_email: "dodaj e-pošto", socials_label: "SOCIALNA OMREŽJA", add_social: "dodaj profil", address_label: "NASLOV", address_placeholder: "Mesto, ulica...", delete_contact: "Izbriši stik", appearance: "VIDEZ", dark_theme: "Temna tema", language: "Jezik", theme_on: "Vklj", theme_off: "Izklj", data_management: "PODATKI", import_phone: "Uvozi iz naprave", import_file: "Uvozi datoteko", export_file: "Izvozi datoteko", delete_all: "Izbriši vse", custom_service: "Po meri...", name_custom: "Ime", phone_placeholder: "Številka", email_placeholder: "E-pošta", social_placeholder: "Povezava", sms: "SMS", call: "Klic", my_github: "Moj GitHub", empty_search: "Ni zadetkov", contacts_title: "Stiki", settings_title: "Nastavitve", legal_local: "Podatki so shranjeni lokalno.", legal_rf: "Upošteva zakone Ruske federacije.", legal_owners: "Blagovne znamke pripadajo lastnikom.", legal_copyright: "Brez avtorskih pravic.", legal_busya: "By BusyaTM" } },
+            "sk": { flag: "🇸🇰", name: "Slovenčina", dict: { search_placeholder: "Hľadať...", no_contacts: "Žiadne kontakty", add_contact: "Pridať kontakt", back: "Späť", edit: "Upraviť", cancel: "Zrušiť", new_contact: "Nový kontakt", edit_contact: "Upraviť", ready: "Hotovo", name_placeholder: "Meno a priezvisko", add_photo: "Pridať fotku", remove_photo: "Odstrániť fotku", phones_label: "TELEFÓNY", add_phone: "pridať telefón", emails_label: "E-MAIL", add_email: "pridať e-mail", socials_label: "SOCIÁLNE SIETE", add_social: "pridať profil", address_label: "ADRESA", address_placeholder: "Mesto, ulica...", delete_contact: "Vymazať kontakt", appearance: "VZHĽAD", dark_theme: "Tmavá téma", language: "Jazyk", theme_on: "Zap", theme_off: "Vyp", data_management: "DÁTA", import_phone: "Importovať zo zariadenia", import_file: "Importovať súbor", export_file: "Exportovať súbor", delete_all: "Vymazať všetko", custom_service: "Vlastné...", name_custom: "Názov", phone_placeholder: "Číslo", email_placeholder: "E-mail", social_placeholder: "Odkaz", sms: "SMS", call: "Volať", my_github: "Môj GitHub", empty_search: "Žiadne výsledky", contacts_title: "Kontakty", settings_title: "Nastavenia", legal_local: "Dáta sú uložené lokálne.", legal_rf: "Podlieha zákonom RF.", legal_owners: "Ochranné známky patria vlastníkom.", legal_copyright: "Bez autorských práv.", legal_busya: "By BusyaTM" } },
+            "rs": { flag: "🇷🇸", name: "Српски", dict: { search_placeholder: "Претражи...", no_contacts: "Нема контаката", add_contact: "Додај контакт", back: "Назад", edit: "Уреди", cancel: "Откажи", new_contact: "Нови контакт", edit_contact: "Уреди", ready: "Готово", name_placeholder: "Име и презиме", add_photo: "Додај слику", remove_photo: "Уклони слику", phones_label: "ТЕЛЕФОНИ", add_phone: "додај телефон", emails_label: "Е-ПОШТА", add_email: "додај е-пошту", socials_label: "ДРУШТВЕНЕ МРЕЖЕ", add_social: "додај профил", address_label: "АДРЕСА", address_placeholder: "Град, улица...", delete_contact: "Обриши", appearance: "ИЗГЛЕД", dark_theme: "Тамна тема", language: "Језик", theme_on: "Укљ", theme_off: "Искљ", data_management: "ПОДАЦИ", import_phone: "Увези са уређаја", import_file: "Увези фајл", export_file: "Извези фајл", delete_all: "Обриши све", custom_service: "Сопствени сервис...", name_custom: "Име", phone_placeholder: "Број", email_placeholder: "Е-пошта", social_placeholder: "Линк", sms: "СМС", call: "Позив", my_github: "Мој GitHub", empty_search: "Нема резултата", contacts_title: "Контакти", settings_title: "Подешавања", legal_local: "Подаци се чувају локално.", legal_rf: "Подлеже законима РФ.", legal_owners: "Жигови припадају власницима.", legal_copyright: "Без ауторских права.", legal_busya: "By BusyaTM" } },
+            "sm": { flag: "🇸🇲", name: "Italiano (San Marino)", dict: { search_placeholder: "Cerca...", no_contacts: "Nessun contatto", add_contact: "Aggiungi", back: "Indietro", edit: "Modifica", cancel: "Annulla", new_contact: "Nuovo contatto", edit_contact: "Modifica", ready: "Fatto", name_placeholder: "Nome e Cognome", add_photo: "Aggiungi foto", remove_photo: "Rimuovi foto", phones_label: "TELEFONI", add_phone: "aggiungi telefono", emails_label: "EMAIL", add_email: "aggiungi email", socials_label: "SOCIAL", add_social: "aggiungi profilo", address_label: "INDIRIZZO", address_placeholder: "Città, via...", delete_contact: "Elimina", appearance: "ASPETTO", dark_theme: "Tema scuro", language: "Lingua", theme_on: "On", theme_off: "Off", data_management: "DATI", import_phone: "Importa da dispositivo", import_file: "Importa file", export_file: "Esporta file", delete_all: "Elimina tutto", custom_service: "Personalizzato...", name_custom: "Nome", phone_placeholder: "Numero", email_placeholder: "Email", social_placeholder: "Link", sms: "SMS", call: "Chiama", my_github: "Il mio GitHub", empty_search: "Nessun risultato", contacts_title: "Contatti", settings_title: "Impostazioni", legal_local: "Dati salvati localmente.", legal_rf: "Soggetto alle leggi RF.", legal_owners: "I marchi sono dei proprietari.", legal_copyright: "Nessun copyright.", legal_busya: "By BusyaTM" } },
+            "cy": { flag: "🏴󠁧󠁢󠁷󠁬󠁳󠁿", name: "Cymraeg", dict: { search_placeholder: "Chwilio...", no_contacts: "Dim cysylltiadau", add_contact: "Ychwanegu", back: "Nôl", edit: "Golygu", cancel: "Canslo", new_contact: "Cyswllt newydd", edit_contact: "Golygu", ready: "Wedi gorffen", name_placeholder: "Enw llawn", add_photo: "Ychwanegu llun", remove_photo: "Tynnu llun", phones_label: "FFÔN", add_phone: "ychwanegu ffôn", emails_label: "E-BOST", add_email: "ychwanegu e-bost", socials_label: "CYMDEITHASOL", add_social: "ychwanegu proffil", address_label: "CYFEIRIAD", address_placeholder: "Cyfeiriad...", delete_contact: "Dileu", appearance: "YMDDANGOSIAD", dark_theme: "Thema dywyll", language: "Iaith", theme_on: "Ymlaen", theme_off: "I ffwrdd", data_management: "DATA", import_phone: "Mewnforio o ddyfais", import_file: "Mewnforio ffeil", export_file: "Allforio ffeil", delete_all: "Dileu popeth", custom_service: "Arferol...", name_custom: "Enw", phone_placeholder: "Rhif", email_placeholder: "E-bost", social_placeholder: "Dolen", sms: "SMS", call: "Galw", my_github: "Fy GitHub", empty_search: "Dim byd", contacts_title: "Cysylltiadau", settings_title: "Gosodiadau", legal_local: "Data yn lleol.", legal_rf: "Yn ddarostyngedig i gyfreithiau RF.", legal_owners: "Nodau masnach i berchnogion.", legal_copyright: "Dim hawlfraint.", legal_busya: "By BusyaTM" } },
+            "dk": { flag: "🇩🇰", name: "Dansk", dict: { search_placeholder: "Søg...", no_contacts: "Ingen kontakter", add_contact: "Tilføj", back: "Tilbage", edit: "Rediger", cancel: "Annuller", new_contact: "Ny kontakt", edit_contact: "Rediger", ready: "Udført", name_placeholder: "Fulde navn", add_photo: "Tilføj billede", remove_photo: "Fjern billede", phones_label: "TELEFONER", add_phone: "tilføj telefon", emails_label: "E-MAIL", add_email: "tilføj e-mail", socials_label: "SOCIALE MEDIER", add_social: "tilføj profil", address_label: "ADRESSE", address_placeholder: "Adresse...", delete_contact: "Slet", appearance: "UDSEENDE", dark_theme: "Mørkt tema", language: "Sprog", theme_on: "Til", theme_off: "Fra", data_management: "DATA", import_phone: "Importer fra enhed", import_file: "Importer fil", export_file: "Eksporter fil", delete_all: "Slet alt", custom_service: "Brugerdefineret...", name_custom: "Navn", phone_placeholder: "Nummer", email_placeholder: "E-mail", social_placeholder: "Link", sms: "SMS", call: "Ring", my_github: "Mit GitHub", empty_search: "Intet fundet", contacts_title: "Kontakter", settings_title: "Indstillinger", legal_local: "Data gemmes lokalt.", legal_rf: "Underlagt russisk lov.", legal_owners: "Varemærker tilhører ejerne.", legal_copyright: "Ingen ophavsret.", legal_busya: "By BusyaTM" } },
+            "cn": { flag: "🇨🇳", name: "中文", dict: { search_placeholder: "搜索...", no_contacts: "暂无联系人", add_contact: "添加", back: "返回", edit: "编辑", cancel: "取消", new_contact: "新联系人", edit_contact: "编辑", ready: "完成", name_placeholder: "姓名", add_photo: "添加照片", remove_photo: "删除照片", phones_label: "电话", add_phone: "添加电话", emails_label: "电子邮件", add_email: "添加邮件", socials_label: "社交网络", add_social: "添加账号", address_label: "地址", address_placeholder: "地址...", delete_contact: "删除联系人", appearance: "外观", dark_theme: "深色模式", language: "语言", theme_on: "开", theme_off: "关", data_management: "数据管理", import_phone: "从设备导入", import_file: "导入文件", export_file: "导出文件", delete_all: "清除所有数据", custom_service: "自定义...", name_custom: "名称", phone_placeholder: "号码", email_placeholder: "邮箱", social_placeholder: "链接", sms: "短信", call: "呼叫", my_github: "我的 GitHub", empty_search: "未找到", contacts_title: "联系人", settings_title: "设置", legal_local: "数据仅保存在本地。", legal_rf: "受俄罗斯联邦法律管辖。", legal_owners: "商标归其所有者所有。", legal_copyright: "不受版权保护。", legal_busya: "By BusyaTM" } },
+            "uk": { flag: "", name: "Українська", dict: { search_placeholder: "Пошук контактів...", no_contacts: "Ви ще не додали контакти", add_contact: "Додати контакт", back: "Назад", edit: "Змінити", cancel: "Скасувати", new_contact: "Новий контакт", edit_contact: "Змінити контакт", ready: "Готово", name_placeholder: "Ім'я та Прізвище", add_photo: "Додати фото", remove_photo: "Видалити фото", phones_label: "ТЕЛЕФОНИ", add_phone: "додати телефон", emails_label: "EMAIL", add_email: "додати email", socials_label: "СОЦ. МЕРЕЖІ", add_social: "додати профіль", address_label: "АДРЕСА", address_placeholder: "Місто, вулиця...", delete_contact: "Видалити контакт", appearance: "ОФОРМЛЕННЯ", dark_theme: "Темна тема", language: "Мова", theme_on: "Увімк", theme_off: "Вимк", data_management: "КЕРУВАННЯ ДАНИМИ", import_phone: "Імпорт з телефону", import_file: "Імпорт з файлу (.json)", export_file: "Експорт у файл (.json)", delete_all: "Видалити всі дані", custom_service: "Свій сервіс...", name_custom: "Назва", phone_placeholder: "Номер", email_placeholder: "Email адреса", social_placeholder: "ID / Посилання", sms: "СМС", call: "Виклик", my_github: "Мій проект на GitHub", empty_search: "Нічого не знайдено", contacts_title: "Контакти", settings_title: "Налаштування", legal_local: "Всі дані зберігаються виключно локально на вашому пристрої.", legal_rf: "Цей додаток підпорядковується законам Російської Федерації.", legal_owners: "Всі назви сторонніх сервісів належать їхнім законним власникам.", legal_copyright: "Цей додаток не охороняється авторским правом або ліцензією.", legal_busya: "By BusyaTM - Protect your privacy" } }
+        };
+
+        function t(key) {
+            let dictObj = i18nData[currentLang] || i18nData['ru'];
+            return dictObj.dict[key] || i18nData['ru'].dict[key] || key;
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (i18nData['ru']) i18nData['ru'].dict.official_site = "Официальный сайт";
+            if (i18nData['gb']) i18nData['gb'].dict.official_site = "Official Website";
+            
+            applyTheme(currentTheme);
+            loadContacts();
+            setupSearch();
+            
+            const langSelect = document.getElementById('lang-select');
+            langSelect.innerHTML = '';
+            
+            Object.keys(i18nData).forEach(langKey => {
+                const opt = document.createElement('option');
+                opt.value = langKey;
+                opt.text = (i18nData[langKey].flag ? i18nData[langKey].flag + ' ' : '') + i18nData[langKey].name;
+                langSelect.appendChild(opt);
+            });
+
+            if (!i18nData[currentLang]) {
+                currentLang = 'ru';
+                localStorage.setItem('contacts_lang', 'ru');
+            }
+            langSelect.value = currentLang;
+            updateLanguageUI();
+        });
+
+        function changeLanguage(val) {
+            currentLang = i18nData[val] ? val : 'ru';
+            localStorage.setItem('contacts_lang', currentLang);
+            updateLanguageUI();
+        }
+
+        function updateLanguageUI() {
+            const langObj = i18nData[currentLang] || i18nData['ru'];
+            const displayStr = (langObj.flag ? langObj.flag + ' ' : '') + langObj.name;
+            document.getElementById('current-lang-display').innerHTML = displayStr;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(t(key)) el.innerText = t(key);
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if(t(key)) el.placeholder = t(key);
+            });
+            
+            document.body.setAttribute('dir', currentLang === 'il' ? 'rtl' : 'ltr');
+            
+            renderList(document.getElementById('search-input').value);
+            document.getElementById('theme-status').innerText = currentTheme === 'dark' ? t('theme_on') : t('theme_off');
+
+            const formScreen = document.getElementById('form-screen');
+            if (formScreen && formScreen.classList.contains('screen-active')) {
+                document.getElementById('form-title').innerText = editingId ? t('edit_contact') : t('new_contact');
+            }
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen-layer').forEach(s => {
+                s.classList.remove('screen-active');
+            });
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.add('screen-active');
+            }
+            
+            if (screenId === 'main-screen') {
+                document.getElementById('search-input').value = '';
+                renderList();
+            }
+        }
+
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', currentTheme);
+            applyTheme(currentTheme);
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            document.getElementById('theme-status').innerText = theme === 'dark' ? t('theme_on') : t('theme_off');
+        }
+
+        let modalConfirmCallback = null;
+
+        function customAlert(msg) { setupModal(msg, false); }
+
+        function customConfirm(msg, callback) {
+            modalConfirmCallback = callback;
+            setupModal(msg, true);
+        }
+
+        function setupModal(msg, isConfirm) {
+            const modal = document.getElementById('custom-modal');
+            const content = document.getElementById('custom-modal-content');
+            const msgEl = document.getElementById('custom-modal-msg');
+            const btnContainer = document.getElementById('custom-modal-buttons');
+
+            msgEl.innerText = msg;
+            btnContainer.innerHTML = '';
+
+            if (isConfirm) {
+                btnContainer.innerHTML = `
+                    <button class="flex-1 border-r border-gray-200 dark:border-gray-700 text-iosBlue font-normal" onclick="closeCustomModal()">${t('cancel')}</button>
+                    <button class="flex-1 text-red-500 font-semibold" onclick="executeModalConfirm()">OK</button>
+                `;
+            } else {
+                btnContainer.innerHTML = `
+                    <button class="flex-1 text-iosBlue font-semibold" onclick="closeCustomModal()">OK</button>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }
+
+        function closeCustomModal() {
+            const modal = document.getElementById('custom-modal');
+            const content = document.getElementById('custom-modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 200);
+        }
+
+        function executeModalConfirm() {
+            closeCustomModal();
+            if (modalConfirmCallback) setTimeout(modalConfirmCallback, 200);
+        }
+
+        function loadContacts() {
+            try {
+                const stored = localStorage.getItem('local_contacts_db');
+                if (stored) contacts = JSON.parse(stored);
+                contacts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            } catch (e) { contacts = []; }
+            renderList();
+        }
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('local_contacts_db', JSON.stringify(contacts));
+                contacts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            } catch (e) {
+                customAlert("Ошибка сохранения: недостаточно памяти устройства!");
+            }
+        }
+
+        function getInitials(name) {
+            let parts = (name || '').trim().split(' ');
+            if (parts.length === 0 || name === '') return '#';
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + (parts[1][0] || '')).toUpperCase();
+        }
+
+        function renderList(query = '') {
+            const listEl = document.getElementById('contacts-list');
+            const emptyEl = document.getElementById('empty-state');
+            listEl.innerHTML = '';
+            
+            const q = query.toLowerCase();
+            const filtered = contacts.filter(c => {
+                if(c.name && c.name.toLowerCase().includes(q)) return true;
+                if(c.phones && c.phones.some(p => p.val.toLowerCase().includes(q))) return true;
+                if(c.emails && c.emails.some(e => e.val.toLowerCase().includes(q))) return true;
+                if(c.socials && c.socials.some(s => s.val.toLowerCase().includes(q))) return true;
+                return false;
+            });
+
+            if (contacts.length === 0) {
+                emptyEl.classList.remove('hidden');
+                emptyEl.classList.add('flex');
+            } else {
+                emptyEl.classList.add('hidden');
+                emptyEl.classList.remove('flex');
+            }
+
+            if (filtered.length > 0) {
+                const card = document.createElement('div');
+                card.className = 'bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm flex flex-col mb-4 overflow-hidden relative z-10';
+                
+                filtered.forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'ios-divider px-4 py-3 flex items-center cursor-pointer relative hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700';
+                    item.onclick = () => openViewModal(c.id);
+
+                    const avatarHtml = c.avatar 
+                        ? `<img src="${c.avatar}" class="w-12 h-12 rounded-full object-cover mx-4 border border-gray-100 dark:border-gray-800 shadow-sm" style="margin-left:0;">`
+                        : `<div class="w-12 h-12 rounded-full avatar-placeholder mx-4 border border-gray-100 dark:border-gray-800 text-[17px] shadow-sm" style="margin-left:0;">${getInitials(c.name)}</div>`;
+
+                    item.innerHTML = `
+                        ${avatarHtml}
+                        <span class="font-medium text-[17px] flex-1 truncate text-left">${c.name || 'Без имени'}</span>
+                    `;
+                    card.appendChild(item);
+                });
+                listEl.appendChild(card);
+            } else if (query && contacts.length > 0) {
+                 listEl.innerHTML = `<p class="text-center text-iosGray-light mt-8">${t('empty_search')}</p>`;
+            }
+        }
+
+        function setupSearch() {
+            document.getElementById('search-input').addEventListener('input', (e) => renderList(e.target.value));
+        }
+
+        function openViewModal(id) {
+            const contact = contacts.find(c => c.id === id);
+            if (!contact) return;
+            
+            editingId = id;
+            document.getElementById('view-name').innerText = contact.name || 'Без имени';
+            
+            const avatarContainer = document.getElementById('view-avatar-container');
+            if (contact.avatar) {
+                avatarContainer.innerHTML = `<img src="${contact.avatar}" class="w-full h-full object-cover">`;
+                avatarContainer.classList.remove('avatar-placeholder');
+            } else {
+                avatarContainer.innerHTML = getInitials(contact.name);
+                avatarContainer.classList.add('avatar-placeholder');
+            }
+
+            const btnCall = document.getElementById('btn-call-action');
+            const btnSms = document.getElementById('btn-sms-action');
+
+            if (contact.phones && contact.phones.length > 0) {
+                const firstPhone = contact.phones[0].val;
+                btnCall.onclick = () => window.location.href = `tel:${firstPhone}`;
+                btnSms.onclick = () => window.location.href = `sms:${firstPhone}`;
+                btnCall.classList.remove('opacity-50', 'pointer-events-none');
+                btnSms.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                btnCall.onclick = null;
+                btnSms.onclick = null;
+                btnCall.classList.add('opacity-50', 'pointer-events-none');
+                btnSms.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            renderViewSection('view-phones', contact.phones, t('phones_label'), 'val', 'tel:');
+            renderViewSection('view-emails', contact.emails, t('emails_label'), 'val', 'mailto:');
+            renderViewSection('view-socials', contact.socials, t('socials_label'), 'val', '');
+
+            const addrBox = document.getElementById('view-address');
+            if (contact.address) {
+                addrBox.classList.remove('hidden');
+                document.getElementById('view-address-text').innerText = contact.address;
+            } else {
+                addrBox.classList.add('hidden');
+            }
+
+            showScreen('view-screen');
+        }
+
+        function renderViewSection(elementId, dataArray, title, valueKey, hrefPrefix = '') {
+            const el = document.getElementById(elementId);
+            if (dataArray && dataArray.length > 0) {
+                el.classList.remove('hidden');
+                let html = `<div class="px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-iosGray-light uppercase tracking-wider text-left">${title}</div>`;
+                dataArray.forEach(item => {
+                    const val = item[valueKey];
+                    const content = hrefPrefix 
+                        ? `<a href="${hrefPrefix}${val}" class="text-[17px] text-iosBlue block truncate w-full hover:underline text-left">${val}</a>` 
+                        : `<span class="text-[17px] text-iosBlue block truncate w-full text-left">${val}</span>`;
+                    
+                    html += `
+                        <div class="ios-divider px-4 py-3 relative flex flex-col justify-center bg-iosCard-light dark:bg-iosCard-dark">
+                            <span class="text-[12px] text-iosGray-light mb-0.5 font-medium text-left">${item.cat}</span>
+                            ${content}
+                        </div>`;
+                });
+                el.innerHTML = html;
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('form-title').innerText = t('new_contact');
+            document.getElementById('delete-btn-container').classList.add('hidden');
+            clearForm();
+            showScreen('form-screen');
+        }
+
+        function openEditModal() {
+            document.getElementById('form-title').innerText = t('edit_contact');
+            document.getElementById('delete-btn-container').classList.remove('hidden');
+            fillForm(editingId);
+            showScreen('form-screen');
+        }
+
+        function addField(type, defaultCat, value = '', catValue = '') {
+            const container = document.getElementById(`${type}-container`);
+            const div = document.createElement('div');
+            div.className = "flex items-stretch ios-divider relative p-0 bg-transparent";
+
+            const options = categoryOptions[type];
+            let isCustom = catValue && !options.includes(catValue);
+
+            let optionsHtml = options.map(opt => 
+                `<option value="${opt}" ${opt === (!isCustom ? (catValue || defaultCat) : '') ? 'selected' : ''}>${opt}</option>`
+            ).join('');
+
+            let placeholderDict = { 'phones': t('phone_placeholder'), 'emails': t('email_placeholder'), 'socials': t('social_placeholder') };
+
+            div.innerHTML = `
+                <div class="w-[45%] border-r border-gray-100 dark:border-gray-800 relative flex flex-col justify-center bg-transparent focus-within:bg-gray-50 dark:focus-within:bg-gray-800 transition">
+                    <select class="category-select w-full h-full py-3 px-4 text-iosBlue outline-none text-[15px] appearance-none bg-transparent cursor-pointer z-10" dir="ltr">
+                        ${optionsHtml}
+                        <option value="Свой сервис" ${isCustom ? 'selected' : ''}>${t('custom_service')}</option>
+                    </select>
+                    
+                    <input type="text" class="custom-category ${isCustom ? '' : 'hidden'} absolute inset-0 w-full h-full bg-iosCard-light dark:bg-iosCard-dark text-iosBlue text-[15px] px-4 outline-none border-r border-gray-100 dark:border-gray-800 z-20 rounded-none placeholder-blue-300" placeholder="${t('name_custom')}" value="${isCustom ? catValue : ''}">
+                    
+                    <button type="button" class="cancel-custom ${isCustom ? '' : 'hidden'} absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-30 w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                    
+                    <div class="pointer-events-none absolute inset-y-0 right-2 flex items-center px-1 text-iosBlue ${isCustom ? 'hidden' : ''} select-arrow z-0">
+                        <i class="fas fa-chevron-down text-[10px]"></i>
+                    </div>
+                </div>
+                
+                <input type="text" value="${value}" class="value-input flex-1 bg-transparent py-3 px-4 outline-none placeholder-gray-400 text-[16px]" placeholder="${placeholderDict[type]}">
+                
+                <button type="button" onclick="this.parentElement.remove()" class="px-4 text-red-500 flex items-center justify-center active:bg-red-50 dark:active:bg-red-900/20 transition">
+                    <i class="fas fa-minus-circle text-xl"></i>
+                </button>
+            `;
+
+            const selectEl = div.querySelector('.category-select');
+            const customInputEl = div.querySelector('.custom-category');
+            const cancelCustomBtn = div.querySelector('.cancel-custom');
+            const selectArrow = div.querySelector('.select-arrow');
+
+            selectEl.addEventListener('change', (e) => {
+                if (e.target.value === 'Свой сервис') {
+                    customInputEl.classList.remove('hidden');
+                    cancelCustomBtn.classList.remove('hidden');
+                    selectArrow.classList.add('hidden');
+                    customInputEl.focus();
+                }
+            });
+
+            cancelCustomBtn.addEventListener('click', () => {
+                customInputEl.classList.add('hidden');
+                cancelCustomBtn.classList.add('hidden');
+                selectArrow.classList.remove('hidden');
+                customInputEl.value = '';
+                selectEl.value = defaultCat;
+            });
+
+            container.appendChild(div);
+        }
+
+        function clearForm() {
+            document.getElementById('contact-name').value = '';
+            document.getElementById('contact-address').value = '';
+            document.getElementById('phones-container').innerHTML = '';
+            document.getElementById('emails-container').innerHTML = '';
+            document.getElementById('socials-container').innerHTML = '';
+            removeAvatar();
+            addField('phones', 'Мобильный');
+        }
+
+        function fillForm(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c) return;
+            
+            document.getElementById('contact-name').value = c.name || '';
+            document.getElementById('contact-address').value = c.address || '';
+            
+            if (c.avatar) {
+                document.getElementById('avatar-preview').src = c.avatar;
+                document.getElementById('avatar-preview').classList.remove('hidden');
+                document.getElementById('avatar-icon').classList.add('hidden');
+                document.getElementById('remove-avatar-btn').classList.remove('hidden');
+            } else { removeAvatar(); }
+
+            document.getElementById('phones-container').innerHTML = '';
+            document.getElementById('emails-container').innerHTML = '';
+            document.getElementById('socials-container').innerHTML = '';
+            
+            if(c.phones) c.phones.forEach(p => addField('phones', 'Мобильный', p.val, p.cat));
+            if(c.emails) c.emails.forEach(e => addField('emails', 'Gmail', e.val, e.cat));
+            if(c.socials) c.socials.forEach(s => addField('socials', 'VK', s.val, s.cat));
+            
+            if(!c.phones || c.phones.length === 0) addField('phones', 'Мобильный');
+        }
+
+        function previewAvatar(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    compressImage(e.target.result, 250, 250, (compressedBase64) => {
+                        document.getElementById('avatar-preview').src = compressedBase64;
+                        document.getElementById('avatar-preview').classList.remove('hidden');
+                        document.getElementById('avatar-icon').classList.add('hidden');
+                        document.getElementById('remove-avatar-btn').classList.remove('hidden');
+                    });
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removeAvatar() {
+            document.getElementById('avatar-preview').src = '';
+            document.getElementById('avatar-preview').classList.add('hidden');
+            document.getElementById('avatar-icon').classList.remove('hidden');
+            document.getElementById('remove-avatar-btn').classList.add('hidden');
+            document.getElementById('avatar-input').value = '';
+        }
+
+        function compressImage(base64Str, maxWidth, maxHeight, callback) {
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                } else {
+                    if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', 0.7));
+            };
+        }
+
+        function saveContact() {
+            const name = document.getElementById('contact-name').value.trim();
+            if (!name) { customAlert('Пожалуйста, введите имя'); return; }
+
+            const getFields = (type) => {
+                return Array.from(document.getElementById(`${type}-container`).children).map(div => {
+                    const selectEl = div.querySelector('.category-select');
+                    const customInputEl = div.querySelector('.custom-category');
+                    const valInputEl = div.querySelector('.value-input');
+                    
+                    let cat = selectEl.value;
+                    if (cat === 'Свой сервис') cat = customInputEl.value.trim() || 'Свой сервис';
+                    return { cat: cat, val: valInputEl.value.trim() };
+                }).filter(item => item.val !== '');
+            };
+
+            const avatarEl = document.getElementById('avatar-preview');
+            const avatar = !avatarEl.classList.contains('hidden') ? avatarEl.src : null;
+
+            const newContact = {
+                id: editingId || Date.now().toString(),
+                name: name,
+                avatar: avatar,
+                phones: getFields('phones'),
+                emails: getFields('emails'),
+                socials: getFields('socials'),
+                address: document.getElementById('contact-address').value.trim()
+            };
+
+            if (editingId) {
+                const idx = contacts.findIndex(c => c.id === editingId);
+                contacts[idx] = newContact;
+            } else {
+                contacts.push(newContact);
+            }
+
+            saveToLocalStorage();
+            showScreen('main-screen');
+        }
+
+        function deleteContact() {
+            customConfirm('Удалить контакт?', () => {
+                contacts = contacts.filter(c => c.id !== editingId);
+                saveToLocalStorage();
+                showScreen('main-screen');
+            });
+        }
+
+        function clearAllContacts() {
+            customConfirm('ВНИМАНИЕ! Вы точно хотите удалить ВСЕ данные?', () => {
+                contacts = [];
+                saveToLocalStorage();
+                showScreen('main-screen');
+            });
+        }
+
+        function exportToFile() {
+            if (contacts.length === 0) { customAlert("Нет данных для экспорта"); return; }
+            const dataStr = JSON.stringify(contacts, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Contacts_Backup_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        contacts = [...contacts, ...imported];
+                        contacts = contacts.map(c => ({...c, id: Date.now() + Math.random().toString()}));
+                        saveToLocalStorage();
+                        customAlert(`Успешно импортировано: ${imported.length}`);
+                        showScreen('main-screen');
+                    }
+                } catch (err) { customAlert('Ошибка чтения файла!'); }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        async function importFromDevice() {
+            // Проверка поддержки системного API импорта в оболочке
+            if (!('contacts' in navigator && 'ContactsManager' in window)) {
+                customAlert('К сожалению, ваша оболочка приложения не поддерживает прямой импорт контактов. Пожалуйста, используйте импорт из файла (.json).');
+                return;
+            }
+
+            try {
+                const props = ['name', 'tel', 'email', 'icon'];
+                const systemContacts = await navigator.contacts.select(props, { multiple: true });
+                let importedCount = 0;
+                
+                for (const sysContact of systemContacts) {
+                    if (!sysContact.name || sysContact.name.length === 0) continue;
+                    
+                    let avatarBase64 = null;
+                    
+                    // Критическое исправление: Конвертация сырого Blob-аватара в Base64
+                    if (sysContact.icon && sysContact.icon.length > 0) {
+                        try {
+                            const blob = sysContact.icon[0];
+                            avatarBase64 = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.onerror = () => resolve(null); // Если ошибка - аватар просто будет пустым
+                                reader.readAsDataURL(blob);
+                            });
+                        } catch (e) {
+                            console.warn('Не удалось загрузить фото системного контакта', e);
+                        }
+                    }
+
+                    let newC = {
+                        id: Date.now() + Math.random().toString(),
+                        name: sysContact.name[0],
+                        avatar: avatarBase64,
+                        phones: [], emails: [], socials: [], address: ''
+                    };
+                    
+                    if (sysContact.tel) {
+                        sysContact.tel.forEach(t => newC.phones.push({cat: 'Мобильный', val: t}));
+                    }
+                    if (sysContact.email) {
+                        sysContact.email.forEach(e => newC.emails.push({cat: 'Gmail', val: e}));
+                    }
+                    
+                    contacts.push(newC);
+                    importedCount++;
+                }
+
+                if (importedCount > 0) {
+                    saveToLocalStorage();
+                    customAlert(`Успешно импортировано контактов: ${importedCount}`);
+                    showScreen('main-screen');
+                } else {
+                    customAlert('Контакты не были выбраны.');
+                }
+            } catch (err) { 
+                customAlert('Ошибка: ' + (err.message || 'Импорт отменен пользователем или приложению не хватает разрешений (READ_CONTACTS).'));
+            }
+        }
+    </script>
+</body>
+</html>
