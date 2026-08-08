@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - '**/*.APK' # Запускать робота только если вы загрузили новый APK
-  workflow_dispatch: # Кнопка для ручного запуска
+      - '**/*.APK'
+  workflow_dispatch:
 
 jobs:
   build-fdroid:
@@ -29,10 +29,8 @@ jobs:
       - name: Настройка структуры магазина
         run: |
           mkdir -p fdroid/repo
-          # Копируем все ваши APK файлы в папку магазина
           cp *.APK fdroid/repo/ || true
           
-          # Создаем файл настроек вашего личного магазина
           cat <<EOT > fdroid/config.yml
           repo_url: "https://berestnevnikolaj671-kot.github.io/Busya-Contacts/fdroid/repo"
           repo_name: "BusyaTM Apps"
