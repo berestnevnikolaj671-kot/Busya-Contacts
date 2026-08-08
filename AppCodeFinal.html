@@ -305,8 +305,15 @@
                     </button>
                 </div>
 
-                <div class="mt-8 mx-4">
-                    <a href="https://github.com/berestnevnikolaj671-kot/Busya-Contacts/tree/main" target="_blank" rel="noopener noreferrer" class="bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm px-4 py-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                <div class="mt-8 mx-4 bg-iosCard-light dark:bg-iosCard-dark rounded-xl shadow-sm flex flex-col overflow-hidden">
+                    <a href="https://busyacontactsofficialsite.netlify.app/" target="_blank" rel="noopener noreferrer" class="ios-divider px-4 py-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
+                        <div class="flex items-center text-iosText-light dark:text-iosText-dark">
+                            <i class="fas fa-globe w-8 text-lg text-center text-iosBlue"></i>
+                            <span class="font-medium text-[17px] ml-1" data-i18n="official_site">Официальный сайт</span>
+                        </div>
+                        <i class="fas fa-external-link-alt text-iosGray-light text-sm"></i>
+                    </a>
+                    <a href="https://github.com/berestnevnikolaj671-kot/Busya-Contacts/tree/main" target="_blank" rel="noopener noreferrer" class="px-4 py-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition active:bg-gray-200 dark:active:bg-gray-700">
                         <div class="flex items-center text-iosText-light dark:text-iosText-dark">
                             <i class="fas fa-code-branch w-8 text-lg text-center"></i>
                             <span class="font-medium text-[17px] ml-1" data-i18n="my_github">Мой проект на GitHub</span>
@@ -390,6 +397,9 @@
         }
 
         document.addEventListener("DOMContentLoaded", () => {
+            if (i18nData['ru']) i18nData['ru'].dict.official_site = "Официальный сайт";
+            if (i18nData['gb']) i18nData['gb'].dict.official_site = "Official Website";
+            
             applyTheme(currentTheme);
             loadContacts();
             setupSearch();
